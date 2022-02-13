@@ -1,0 +1,32 @@
+<launch>
+    <!--    <node name="navigation_main" pkg="collision_avoidance" type="navigation_main" output="screen">-->
+    <!--        <remap from="~/set_point" to="/clicked_point"/>-->
+    <!--        <remap from="~/ca_velocity" to="/collision_avoidance/output"/>-->
+    <!--        <remap from="/move_base/GlobalPlanner/plan" to="/global_planner/planner/plan"/>-->
+    <!--    </node>-->
+
+    <node name="ca_360" pkg="collision_avoidance_360" type="move_test" output="screen">
+        <!--   params     -->
+        <param name="model_path" value="$(find collision_avoidance_360)/model/Stage2_360_test.tjm"/>
+        <param name="input_size" value="512"/>
+        <param name="fov" value="180"/>
+        <param name="out_lines" value="1080"/>
+        <param name="linear_gain" value="0.5"/>
+        <param name="angular_gain" value="0.7"/>
+        <param name="max_range" value="3.0"/>
+        <param name="real_or_not" value="false"/>
+        <param name="goal_x" value="-2.0"/>
+        <param name="goal_y" value="3.0"/>
+        <param name="dis_tolerate" value="0.5"/>
+
+        <!--   subscribe topics     -->
+        <remap from="~/scan" to="/robot_7/base_scan"/>
+        <remap from="~/odom" to="/robot_7/odom"/>
+        <remap from="~/planning_vec" to="/navigation_main/planning_vec"/>
+        <remap from="~/pose_publisher" to="/pose_publisher"/>
+        <remap from="~/base_pose_ground_truth" to="/robot_7/base_pose_ground_truth"/>
+        <remap from="~/key_vel" to="/robot_7/cr_vel"/>
+        <remap from="~/output_vel" to="/robot_7/cmd_vel"/>
+
+    </node>
+</launch>
