@@ -86,17 +86,17 @@ public:
     {
         _nh = nh;
         // usual
-        _laserScanSub = _nh.subscribe("scan", 1, &Env::laserScanCallback, this);
-        _speedSub = _nh.subscribe("odom", 1, &Env::odometryCallback, this);
+        _laserScanSub = _nh.subscribe("/robot_7/base_scan", 1, &Env::laserScanCallback, this);
+        _speedSub = _nh.subscribe("/robot_7/odom", 1, &Env::odometryCallback, this);
 
         // real
-        _planningVecSub = _nh.subscribe("planning_vec", 1, &Env::planningVecCallback, this);
-        _poseSub = _nh.subscribe("pose_publisher", 1, &Env::stateCallback, this);  //real
+        _planningVecSub = _nh.subscribe("/navigation_main/planning_vec", 1, &Env::planningVecCallback, this);
+        _poseSub = _nh.subscribe("/pose_publisher", 1, &Env::stateCallback, this);  //real
 
         // unreal
-        _stateGTSub = _nh.subscribe("base_pose_ground_truth", 1, &Env::stateGTCallback, this); //stage
-        _keySpeedSub = _nh.subscribe("key_vel", 1, &Env::keyCallback, this);  //key in
-        _outputPub = _nh.advertise<geometry_msgs::Twist>("output_vel", 1);
+        _stateGTSub = _nh.subscribe("/robot_7/base_pose_ground_truth", 1, &Env::stateGTCallback, this); //stage
+        _keySpeedSub = _nh.subscribe("/robot_7/cr_vel", 1, &Env::keyCallback, this);  //key in
+        _outputPub = _nh.advertise<geometry_msgs::Twist>("/robot_7/cmd_vel", 1);
 
         // visualize
         _lidarFilteredPub = _nh.advertise<sensor_msgs::LaserScan>("/lidar_filtered",10);
@@ -318,24 +318,9 @@ int main(int argc, char **argv)
     pnh.param<double>("dis_tolerate", distanceTolerate, 0.5);
 
 
-    /***** Neural Network *****/
-    Net net;
-    auto ret = net.load(modelPath);
-    if (ret != 0)
-    {
-        ROS_ERROR("Node [%s] is shutdown", ros::this_node::getName().c_str());
-        ros::shutdown();
-        return ret;
-    }
-
     /***** Robot Environment *****/
     Env env(pnh);
     env.setParams(input_size, fov, max_range, out_lines, goal_x, goal_y, distanceTolerate);
-
-    auto tensorOptions = at::TensorOptions().dtype(at::kFloat).device(at::kCUDA);
-    auto laserTensor = at::empty({1, 2, out_lines}, tensorOptions);
-    auto goalTensor = at::empty({1, 2}, tensorOptions);
-    auto speedTensor = at::empty({1, 2}, tensorOptions);
 
     /***** Check Ready *****/
     while (env.rawScanData.empty() or env.odomSpeed.empty() or env.state_GT.empty())
@@ -350,6 +335,7 @@ int main(int argc, char **argv)
     deque<at::Tensor> obs_his{lidar_polar,lidar_polar,lidar_polar,lidar_polar};
     deque<vector<double>> poses_his{env.state_GT,env.state_GT,env.state_GT,env.state_GT};
     vector<at::Tensor> r_t;
+    r_t = env.polars_full2r_filtered_rad(obs_his,poses_his);
 
     ros::Rate rate(1);
     while (ros::ok())
@@ -376,25 +362,14 @@ int main(int argc, char **argv)
             poses_his.pop_front();
             poses_his.emplace_back(env.state_GT);
         }
+
+        //act
+        env.outputKey();
+
         // splice
         r_t = env.polars_full2r_filtered_rad(obs_his,poses_his);
-        r_t[0] = r_t[0]/max_range - 0.5;
-        laserTensor = at::cat({r_t[0].view({1, -1}),r_t[1].view({1, -1})},0).unsqueeze(0).toType(at::kFloat).cuda();
-        goalTensor = at::tensor(env.planningVec, tensorOptions).view({1, 2});
-        speedTensor = at::tensor(env.odomSpeed, tensorOptions).view({1, 2});
-        cout<<"env.planningVec:"<<endl<<env.planningVec<<endl;
-        vector<double> action;
-        ret = net.forward(laserTensor, goalTensor, speedTensor, action);
-        if (ret != 0)
-        {
-            ROS_ERROR("Node [%s] is shutdown", ros::this_node::getName().c_str());
-            ros::shutdown();
-        }
-        // act
-        auto linear = linearGain * action[0];
-        auto angular = angularGain * action[1];
 
-        env.output(linear, angular);
+
 //        rate.sleep();
     }
     return 0;

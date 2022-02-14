@@ -165,6 +165,12 @@ target_link_libraries(scatter
   ${TORCH_LIBRARIES}
   )
 target_link_libraries(scatter -Wl,--no-as-needed torchscatter)
+
+add_executable(visual_test src/visual_test.cpp)
+target_link_libraries(visual_test
+  ${TORCH_LIBRARIES}
+  )
+target_link_libraries(visual_test -Wl,--no-as-needed torchscatter)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
