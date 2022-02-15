@@ -1,23 +1,26 @@
 # 使用说明
 ## 1.环境配置与编译
-#### 1.1 cuda&cudnn
+### 1.1 环境
+#### 1.1.1 cuda&cudnn
 首先准备好cuda和对应的cudnn库     
 作为参照：本人使用过11.1和11.3版本的cuda，其他版本未测试
-#### 1.2 torch_scatter
-参照torch_scatter的[github仓库](https://github.com/rusty1s/pytorch_scatter "github仓库")中说明编译即可。
+#### 1.1.2 torch_scatter
+1. 首先在torch_scatter的cmakelist中设置Torch_DIR  
+`set(Torch_DIR /.../libtorch/share/cmake/Torch)`
+2. 其余参照torch_scatter的[github仓库](https://github.com/rusty1s/pytorch_scatter "github仓库")中说明编译即可。
 
 
-### 2.编译代码中存在的一些问题如下：
-#### 2.1 编译时找不到Python库是因为cmake版本需要在3.12以上，而ubuntu18自带的cmake版本为3.10
+### 1.2 编译代码中存在的一些问题如下：
+#### 1.2.1 编译时找不到Python库是因为cmake版本需要在3.12以上，而ubuntu18自带的cmake版本为3.10
 升级cmake版本到3.19参照网址：
 https://blog.csdn.net/weixin_35757704/article/details/112557853
-#### 2.2 torch路径找不到
+#### 1.2.2 torch路径找不到
 需要在torch_scatter和自己的ros包的cmakelist中设置Torch_DIR
 set(Torch_DIR /.../libtorch/share/cmake/Torch)
-#### 2.3 python.h头文件找不到
+#### 1.2.3 python.h头文件找不到
 需要在cmakelist中国设置include_directories
 加入/usr/bin/python3.6m，也就是python.h所在的文件夹，这样编译就能通过了
-#### 2.4 运行时提示找不到libtorchscatter.so库
+#### 1.2.4 运行时提示找不到libtorchscatter.so库
 查找发现，**这样的问题主要是因为：**在linux执行连接了.so库的可执行程序时，如果未将so文件放入系统指定的so文件搜索路径下，运行程序时会提示找不到对应的so库，输出上方的错误信息，而执行搜索这一工作的是一个叫ld链接器的东西。Linux中的ld链接器找不到所需的该库文件导致报BUG。
 Linux链接器ld默认的搜索目录是`/lib`和`/usr/lib`，所以so文件应该放在这些路径下，如果so文件放在其他路径也可以，但是需要修改一些系统文件让ld知道库文件在哪里。
 所以将以下命令放在.bashrc中即可：
